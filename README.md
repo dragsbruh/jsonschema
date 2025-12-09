@@ -1,5 +1,7 @@
 # Go JSON Schema Reflection
 
+> NOTE: this is a fork of [invopop/jsonschema](https://github.com/invopop/jsonschema) with stuff i felt needed to change
+
 [![Lint](https://github.com/invopop/jsonschema/actions/workflows/lint.yaml/badge.svg)](https://github.com/invopop/jsonschema/actions/workflows/lint.yaml)
 [![Test Go](https://github.com/invopop/jsonschema/actions/workflows/test.yaml/badge.svg)](https://github.com/invopop/jsonschema/actions/workflows/test.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/invopop/jsonschema)](https://goreportcard.com/report/github.com/invopop/jsonschema)
