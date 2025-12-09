@@ -1,6 +1,6 @@
-module github.com/invopop/jsonschema
+module github.com/dragsbruh/jsonschema
 
-go 1.18
+go 1.25.5
 
 require (
 	github.com/stretchr/testify v1.8.1
