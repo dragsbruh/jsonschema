@@ -1,7 +1,7 @@
 // Package jsonschema uses reflection to generate JSON Schemas from Go types [1].
 //
 // If json tags are present on struct fields, they will be used to infer
-// property names and if a property is required (omitempty is present).
+// property names and if a property is required (omitempty/omitzero is present).
 //
 // [1] http://json-schema.org/latest/json-schema-validation.html
 package jsonschema
@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -103,7 +104,7 @@ type Reflector struct {
 
 	// RequiredFromJSONSchemaTags will cause the Reflector to generate a schema
 	// that requires any key tagged with `jsonschema:required`, overriding the
-	// default of requiring any key *not* tagged with `json:,omitempty`.
+	// default of requiring any key *not* tagged with `json:,omitempty`/`json:,omitzero`.
 	RequiredFromJSONSchemaTags bool
 
 	// Do not reference definitions. This will remove the top-level $defs map and
@@ -177,7 +178,7 @@ func (r *Reflector) Reflect(v any) *Schema {
 
 // ReflectFromType generates root schema
 func (r *Reflector) ReflectFromType(t reflect.Type) *Schema {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem() // re-assign from pointer
 	}
 
@@ -275,7 +276,7 @@ func (r *Reflector) reflectTypeToSchemaWithID(defs Definitions, t reflect.Type) 
 
 func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type) *Schema {
 	// only try to reflect non-pointers
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return r.refOrReflectTypeToSchema(definitions, t.Elem())
 	}
 
@@ -362,7 +363,7 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 }
 
 func (r *Reflector) reflectCustomSchema(definitions Definitions, t reflect.Type) *Schema {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return r.reflectCustomSchema(definitions, t.Elem())
 	}
 
@@ -478,7 +479,7 @@ func (r *Reflector) reflectStruct(definitions Definitions, t reflect.Type, s *Sc
 }
 
 func (r *Reflector) reflectStructFields(st *Schema, definitions Definitions, t reflect.Type) {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {
@@ -560,10 +561,8 @@ func (r *Reflector) reflectStructFields(st *Schema, definitions Definitions, t r
 }
 
 func appendUniqueString(base []string, value string) []string {
-	for _, v := range base {
-		if v == value {
-			return base
-		}
+	if slices.Contains(base, value) {
+		return base
 	}
 	return append(base, value)
 }
@@ -596,7 +595,7 @@ func (r *Reflector) refDefinition(definitions Definitions, t reflect.Type) *Sche
 
 func (r *Reflector) lookupID(t reflect.Type) ID {
 	if r.Lookup != nil {
-		if t.Kind() == reflect.Ptr {
+		if t.Kind() == reflect.Pointer {
 			t = t.Elem()
 		}
 		return r.Lookup(t)
@@ -742,9 +741,10 @@ func (t *Schema) booleanKeywords(tags []string) {
 		}
 		name, val := nameValue[0], nameValue[1]
 		if name == "default" {
-			if val == "true" {
+			switch val {
+			case "true":
 				t.Default = true
-			} else if val == "false" {
+			case "false":
 				t.Default = false
 			}
 		}
@@ -913,11 +913,12 @@ func (t *Schema) setExtra(key, val string) {
 			t.Extras[key], _ = strconv.Atoi(val)
 		default:
 			var x any
-			if val == "true" {
+			switch val {
+			case "true":
 				x = true
-			} else if val == "false" {
+			case "false":
 				x = false
-			} else {
+			default:
 				x = val
 			}
 			t.Extras[key] = x
@@ -954,12 +955,7 @@ func nullableFromJSONSchemaTags(tags []string) bool {
 	if ignoredByJSONSchemaTags(tags) {
 		return false
 	}
-	for _, tag := range tags {
-		if tag == "nullable" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tags, "nullable")
 }
 
 func ignoredByJSONTags(tags []string) bool {
@@ -971,12 +967,7 @@ func ignoredByJSONSchemaTags(tags []string) bool {
 }
 
 func inlinedByJSONTags(tags []string) bool {
-	for _, tag := range tags[1:] {
-		if tag == "inline" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tags[1:], "inline")
 }
 
 // toJSONNumber converts string to *json.Number.
@@ -1035,7 +1026,7 @@ func (r *Reflector) reflectFieldName(f reflect.StructField) (string, bool, bool,
 		}
 
 		// As per JSON Marshal rules, anonymous pointer to structs are inherited
-		if f.Type.Kind() == reflect.Ptr && f.Type.Elem().Kind() == reflect.Struct {
+		if f.Type.Kind() == reflect.Pointer && f.Type.Elem().Kind() == reflect.Struct {
 			return "", true, false, false
 		}
 	}
