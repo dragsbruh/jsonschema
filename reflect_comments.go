@@ -59,8 +59,6 @@ func (r *Reflector) AddGoComments(base, path string, opts ...CommentOption) erro
 func (r *Reflector) extractGoComments(base, path string, commentMap map[string]string, opts *commentOptions) error {
 	fset := token.NewFileSet()
 
-	// TODO: ast.Package is deprecated, as lsp says probs change to go/types
-
 	dict := make(map[string][]*ast.Package)
 	err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
